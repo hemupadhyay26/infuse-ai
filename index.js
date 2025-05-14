@@ -24,6 +24,7 @@ Answer the question based on the above context: {question}
 
 // const LLM_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
 const LLM_MODEL_ID = "anthropic.claude-v2";
+const EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0";
 
 // const pdfloader = new PDFLoader(pdf);
 const documentLoader = new DirectoryLoader(pdf, {
@@ -32,9 +33,6 @@ const documentLoader = new DirectoryLoader(pdf, {
 
 try {
   const queryRag = async (query) => {
-    // Print the user query
-    console.log("User query:", query);
-
     // Load the documents from the PDF
     const docs = await documentLoader.load();
     // console.log("Number of documents loaded:", docs.length);
@@ -83,7 +81,7 @@ try {
         accessKeyId: process.env.BEDROCK_AWS_ACCESS_KEY_ID || "",
         secretAccessKey: process.env.BEDROCK_AWS_SECRET_ACCESS_KEY || "",
       },
-      model: "amazon.titan-embed-text-v2:0",
+      model: EMBEDDING_MODEL_ID,
     });
 
     const vectorstore = await MemoryVectorStore.fromDocuments(
@@ -127,20 +125,29 @@ try {
     // Send the messages to the LLM
     const llmResponse = await llm.invoke(inputText);
     // console.log("LLM Response:", llmResponse);
+    // Print the user query
+    console.log("========================================");
+    console.log("User Query:");
+    console.log(query);
+    console.log("========================================");
 
-    // Print the response and sources
-    console.log(`\n\nResponse: ${llmResponse}\nSources: ${sources.join(", ")}\n\n`);
+    // Print the LLM response
+    console.log("\nResponse:");
+    console.log(llmResponse);
+
+    // Print the sources
+    console.log("\nSources:");
+    console.log(sources.join(", "));
+    console.log("----------------------------------------\n");
   };
 
-  queryRag(
-    "what is cost of deploying landing page?"
-  );
+  queryRag("what is cost of deploying landing page?");
 
-  queryRag(
-    "what is my lenskart order UNIT PRICE amount?"
-  );
+  queryRag("what is my lenskart order UNIT PRICE amount?");
 
+  queryRag("who is the owner of the bill?");
 
+  queryRag("Provide the delivery address for the order.");
 } catch (error) {
   console.error("Error loading PDF:", error);
 }
