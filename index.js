@@ -1,30 +1,31 @@
 import express from "express";
-import { queryRag } from "./src/query-rag.js";
-import { RESPONSE_CODES } from "./src/utils/responce-code.js";
+import cors from "cors";
+import dotenv from "dotenv";
+import multer from "multer";
+
+import { signupHandler, loginHandler } from "./src/handlers/auth.js";
+import { verifyToken } from "./src/handlers/middleware/authMiddleware.js";
+import { uploadHandler } from "./src/handlers/upload.js";
+import { askHandler } from "./src/handlers/ask.js";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
+app.use(cors());
 app.use(express.json());
 
-app.post("/ask", async (req, res) => {
-  const { question } = req.body;
-  if (!question || typeof question !== "string" || !question.trim()) {
-    return res.status(RESPONSE_CODES.BAD_REQUEST).json({ error: "Missing or invalid 'question' in request body." });
-  }
-  try {
-    // Call queryRag and capture its return value
-    const response = await queryRag(question);
-    res.status(RESPONSE_CODES.SUCCESS).json(response);
-  } catch (err) {
-    res.status(RESPONSE_CODES.INTERNAL_SERVER_ERROR).json({ error: err.message });
-  }
-});
+const upload = multer({ dest: "uploads/" });
 
-app.get("/health", (req, res) => {
-  res.status(RESPONSE_CODES.SUCCESS).json({ status: "ok" });
-});
+// Public routes
+app.post("/signup", signupHandler);
+app.post("/login", loginHandler);
 
-app.listen(PORT, () => {
-  console.log(`infuse-ai RAG API server running on port ${PORT}`);
-});
+// Authenticated routes
+app.post("/upload", verifyToken, upload.single("file"), uploadHandler);
+app.post("/ask", verifyToken, askHandler);
+
+// Health check
+app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

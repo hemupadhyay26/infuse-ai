@@ -44,5 +44,11 @@
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/your-username/infuse-ai.git
+git clone https://github.com/hemupadhyay26/infuse-ai.git
 cd infuse-ai
+```
+
+### 2. Create db folder
+``` bash
+mkdir -p src/db
+touch src/db/users.json

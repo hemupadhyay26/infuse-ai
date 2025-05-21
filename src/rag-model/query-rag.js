@@ -1,5 +1,4 @@
-import { config } from "dotenv";
-config();
+
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { Bedrock } from "@langchain/community/llms/bedrock";
 import { getEmbeddings } from "./utils/helperFun.js";
@@ -17,11 +16,11 @@ Answer the question based on the above context: {question}
 
 const LLM_MODEL_ID = "anthropic.claude-v2";
 
-export const queryRag = async (query) => {
+export const queryRag = async (query, userId) => {
   const embeddings = await getEmbeddings();
 
   const vectorStore = new Chroma(embeddings, {
-    collectionName: process.env.COLLECTION_NAME || "infuse-ai",
+    collectionName: `infuse-ai-${userId}`,
     url: process.env.CHROMA_URL || "http://localhost:8000",
     collectionMetadata: {
       "hnsw:space": "cosine",

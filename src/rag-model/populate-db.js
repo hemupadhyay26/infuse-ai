@@ -1,13 +1,13 @@
 import { config } from "dotenv";
 config();
-import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { flattenMetadata, getEmbeddings, loadDocuments, split_documents } from "./utils/helperFun.js";
+import { Chroma } from "@langchain/community/vectorstores/chroma";
 
 const DATA_SOURCE = process.env.DATA_SOURCE || './src/data/source';
 
 const addToChroma = async (chunks, embeddings) => {
     const vectorStore = new Chroma(embeddings, {
-        collectionName: process.env.CHROMA_COLLECTION_NAME || "infuse-ai",
+        collectionName:  process.env.CHROMA_COLLECTION_NAME || `infuse-ai-`,
         url: process.env.CHROMA_URL || "http://localhost:8000",
         collectionMetadata: {
             "hnsw:space": "cosine",
@@ -15,7 +15,7 @@ const addToChroma = async (chunks, embeddings) => {
     })
 
     console.log('Adding documents to Chroma...');
-    console.log('collectionName:', process.env.CHROMA_COLLECTION_NAME);
+    console.log('collectionName:', process.env.CHROMA_COLLECTION_NAME || "infuse-ai");
 
     // Generate ids based on pdf name, page number, and lines from/to
     const cleanChunks = chunks.map(chunk => {
