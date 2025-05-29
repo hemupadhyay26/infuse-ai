@@ -1,31 +1,79 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import fs from "fs";
-import path from "path";
-
-const USERS_FILE = path.join("src", "db", "users.json");
+import crypto from "crypto";
+import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import dynamoDBDocumentClient from "../libs/dynamodbClient.js";
 
 export async function signupHandler(req, res) {
-  const { username, password } = req.body;
-  const users = JSON.parse(fs.readFileSync(USERS_FILE));
-  if (users[username]) return res.status(400).json({ error: "User exists" });
+  try {
+    const { username, password } = req.body;
 
-  const hashed = await bcrypt.hash(password, 10);
-  users[username] = { password: hashed, userId: crypto.randomUUID() };
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users));
+    // Check if user exists
+    const getUserParams = {
+      TableName: "Users",
+      Key: { username },
+    };
 
-  res.json({ message: "Signup successful" });
+    const existingUser = await dynamoDBDocumentClient.send(new GetCommand(getUserParams));
+    if (existingUser.Item) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Create new user with generated userId
+    const userId = crypto.randomUUID();
+    const putUserParams = {
+      TableName: "Users",
+      Item: {
+        username,
+        passwordHash: hashed,
+        userId,
+        createdAt: new Date().toISOString(),
+      },
+    };
+
+    await dynamoDBDocumentClient.send(new PutCommand(putUserParams));
+
+    res.json({ message: "Signup successful" });
+  } catch (err) {
+    console.error("Error during signup:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 export async function loginHandler(req, res) {
-  const { username, password } = req.body;
-  const users = JSON.parse(fs.readFileSync(USERS_FILE));
-  const user = users[username];
-  if (!user) return res.status(401).json({ error: "Invalid user" });
+  try {
+    const { username, password } = req.body;
 
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) return res.status(401).json({ error: "Invalid credentials" });
+    // Find user by username
+    const getUserParams = {
+      TableName: "Users",
+      Key: { username },
+    };
 
-  const token = jwt.sign({ userId: user.userId, username }, process.env.JWT_SECRET);
-  res.json({ token });
+    const user = await dynamoDBDocumentClient.send(new GetCommand(getUserParams));
+    if (!user.Item) {
+      return res.status(401).json({ error: "Invalid user" });
+    }
+
+    // Compare password hash
+    const match = await bcrypt.compare(password, user.Item.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: user.Item.userId, username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({ token });
+  } catch (err) {
+    console.error("Error during login:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }

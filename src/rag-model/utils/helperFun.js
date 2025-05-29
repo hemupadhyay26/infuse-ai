@@ -3,11 +3,14 @@ config();
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { BedrockEmbeddings } from "@langchain/aws";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { DirectoryLoader } from "langchain/document_loaders/fs/directory";
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { TextLoader } from "langchain/document_loaders/fs/text";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { s3 } from "../../libs/s3Client.js";
+import { formatDateTime } from "./formatDateTime.js";
+import { DirectoryLoader } from "langchain/document_loaders/fs/directory";
 
-
+// Helper to get embeddings
 export const getEmbeddings = async () => {
     if (
         !process.env.BEDROCK_AWS_REGION ||
@@ -29,16 +32,14 @@ export const getEmbeddings = async () => {
     });
 
     return embeddings;
-}
+};
 
 export const loadDocuments = async (source) => {
     const documentLoader = new DirectoryLoader(source, {
         ".pdf": (path) => {
-            console.log(`Processing PDF file: ${path}`);
             return new PDFLoader(path);
         },
         ".txt": (path) => {
-            console.log(`Processing TXT file: ${path}`);
             return new TextLoader(path);
         },
     });
@@ -46,27 +47,26 @@ export const loadDocuments = async (source) => {
     return documentLoader.load();
 }
 
+// Helper to split documents into chunks
 export const split_documents = async (docs) => {
     const textSplitter = new RecursiveCharacterTextSplitter({
         chunkSize: 1000,
         chunkOverlap: 200,
     });
 
-    const splitDocs = await textSplitter.splitDocuments(
-        docs
-    );
+    const splitDocs = await textSplitter.splitDocuments(docs);
 
     return splitDocs;
-}
+};
 
 // Helper to flatten metadata for Chroma
 export const flattenMetadata = (metadata) => {
     const flat = {};
     for (const key in metadata) {
         if (
-            typeof metadata[key] === 'string' ||
-            typeof metadata[key] === 'number' ||
-            typeof metadata[key] === 'boolean'
+            typeof metadata[key] === "string" ||
+            typeof metadata[key] === "number" ||
+            typeof metadata[key] === "boolean"
         ) {
             flat[key] = metadata[key];
         } else {
@@ -76,6 +76,7 @@ export const flattenMetadata = (metadata) => {
     return flat;
 };
 
+// Add documents to Chroma vector store
 export const addToChromaUserDB = async (chunks, embeddings, userId) => {
     const vectorStore = new Chroma(embeddings, {
         collectionName: `infuse-ai-${userId}`,
@@ -85,41 +86,55 @@ export const addToChromaUserDB = async (chunks, embeddings, userId) => {
         },
     });
 
-    console.log('Adding documents to Chroma for user:', userId);
-
-    // Generate ids based on pdf name, page number, and lines from/to
-    const cleanChunks = chunks.map(chunk => {
+    const cleanChunks = chunks.map((chunk) => {
         const meta = flattenMetadata(chunk.metadata);
-        // Extract file name from source path
-        const sourcePath = meta.source || '';
-        const fileName = sourcePath.split('\\').pop().split('/').pop().replace(/\.[^/.]+$/, '');
-        // Parse loc JSON
-        let pageNumber = 'unknown';
-        let fromLine = 'unknown';
-        let toLine = 'unknown';
+        const sourcePath = meta.source || "";
+        const fileName = sourcePath.split("\\").pop().split("/").pop().replace(/\.[^/.]+$/, "");
+        let pageNumber = "unknown";
+        let fromLine = "unknown";
+        let toLine = "unknown";
         try {
             const loc = JSON.parse(meta.loc);
-            pageNumber = loc.pageNumber || 'unknown';
+            pageNumber = loc.pageNumber || "unknown";
             if (loc.lines) {
-                fromLine = loc.lines.from || 'unknown';
-                toLine = loc.lines.to || 'unknown';
+                fromLine = loc.lines.from || "unknown";
+                toLine = loc.lines.to || "unknown";
             }
         } catch (err) {
-            console.error('Error parsing loc JSON:', err);
+            console.error("Error parsing loc JSON:", err);
         }
         const id = `${userId}-${fileName}-p${pageNumber}-l${fromLine}-${toLine}`;
         return {
             pageContent: chunk.pageContent,
             metadata: meta,
-            id
+            id,
         };
     });
-    const ids = cleanChunks.map(chunk => chunk.id);
+    const ids = cleanChunks.map((chunk) => chunk.id);
 
     await vectorStore.addDocuments(cleanChunks, { ids });
-    console.log('Documents added to Chroma for user:', userId);
-}
+    console.log("Documents added to Chroma for user:", userId, formatDateTime());
+};
 
+// Process uploaded file from S3
+// export const processUploadFileByUser = async (userId, s3Path) => {
+//     try {
+//         const bucket = process.env.AWS_S3_BUCKET;
+//         const key = s3Path.replace(`s3://${bucket}/`, "");
+
+//         console.log("Processing file directly from S3:", bucket, key);
+
+//         const document = await loadDocumentsFromS3(bucket, key);
+//         const chunks = await split_documents(document);
+//         const embeddings = await getEmbeddings();
+//         await addToChromaUserDB(chunks, embeddings, userId);
+
+//         console.log("File processed successfully for user:", userId);
+//     } catch (err) {
+//         console.error("Error processing file directly from S3:", err);
+//         throw err;
+//     }
+// };
 export const processUploadFileByUser = async (userId, storedPath) => {
     const document = await loadDocuments(storedPath);
     const chunks = await split_documents(document);
