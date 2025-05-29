@@ -1,11 +1,7 @@
 version: '3.9'
 
-networks:
-  net:
-    driver: bridge
-
 services:
-  Chroma:
+  chroma:
     container_name: chroma
     image: chromadb/chroma
     volumes:
@@ -22,8 +18,34 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - net
+      - infuse-net
+  
+  dynamodb-local:
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - "8001:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+    user: "1000:1000"
+    networks:
+      - infuse-net
+      
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin
+    container_name: dynamodb-admin
+    ports:
+      - "8002:8001"
+    environment:
+      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+      - AWS_REGION=ap-south-1
+    depends_on:
+      - dynamodb-local
+    networks:
+      - infuse-net
 
-volumes:
-  chroma-data:
-    driver: local
+networks:
+  infuse-net:
+    driver: bridge
