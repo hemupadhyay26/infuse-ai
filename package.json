@@ -21,12 +21,9 @@
     "@langchain/aws": "^0.1.9",
     "@langchain/community": "^0.3.43",
     "@langchain/core": "^0.3.56",
-    "@langchain/openai": "^0.5.10",
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^6.0.0",
-    "chalk": "^5.4.1",
     "chromadb": "^2.4.4",
-    "commander": "^14.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
@@ -34,9 +31,7 @@
     "luxon": "^3.6.1",
     "multer": "^2.0.0",
     "nodemon": "^3.1.10",
-    "ora": "^8.2.0",
     "pdf-parse": "^1.1.1",
-    "pg": "^8.16.0",
-    "sequelize": "^6.37.7"
+    "uuid": "^11.1.0"
   }
 }
