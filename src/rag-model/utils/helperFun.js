@@ -1,12 +1,8 @@
-import { config } from "dotenv";
-config();
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import { BedrockEmbeddings } from "@langchain/aws";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { TextLoader } from "langchain/document_loaders/fs/text";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { s3 } from "../../libs/s3Client.js";
 import { formatDateTime } from "./formatDateTime.js";
 import { DirectoryLoader } from "langchain/document_loaders/fs/directory";
 
@@ -116,25 +112,6 @@ export const addToChromaUserDB = async (chunks, embeddings, userId) => {
     console.log("Documents added to Chroma for user:", userId, formatDateTime());
 };
 
-// Process uploaded file from S3
-// export const processUploadFileByUser = async (userId, s3Path) => {
-//     try {
-//         const bucket = process.env.AWS_S3_BUCKET;
-//         const key = s3Path.replace(`s3://${bucket}/`, "");
-
-//         console.log("Processing file directly from S3:", bucket, key);
-
-//         const document = await loadDocumentsFromS3(bucket, key);
-//         const chunks = await split_documents(document);
-//         const embeddings = await getEmbeddings();
-//         await addToChromaUserDB(chunks, embeddings, userId);
-
-//         console.log("File processed successfully for user:", userId);
-//     } catch (err) {
-//         console.error("Error processing file directly from S3:", err);
-//         throw err;
-//     }
-// };
 export const processUploadFileByUser = async (userId, storedPath) => {
     const document = await loadDocuments(storedPath);
     const chunks = await split_documents(document);
