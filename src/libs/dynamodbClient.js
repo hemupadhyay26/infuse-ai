@@ -4,10 +4,10 @@ import { ListTablesCommand } from "@aws-sdk/client-dynamodb";
 
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION || "ap-south-1",
-  endpoint: process.env.DYNAMODB_ENDPOINT || "http://localhost:8001", // your local DynamoDB endpoint
+  endpoint: process.env.DYNAMODB_ENDPOINT || "",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "fakecanbehere",
-    secretAccessKey: process.env.AWS_SECRET_KEY_ID || "fakethisalsoforlocal",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.AWS_SECRET_KEY_ID || "",
   },
   // nedd to change cred for production
 });
