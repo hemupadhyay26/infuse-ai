@@ -1,5 +1,5 @@
 // src/db/migrations.js
-import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, CreateTableCommand, UpdateTableCommand } from '@aws-sdk/client-dynamodb';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -20,10 +20,26 @@ async function createTables() {
       const usersTableParams = {
         TableName: 'Users',
         AttributeDefinitions: [
-          { AttributeName: 'username', AttributeType: 'S' }
+          { AttributeName: 'username', AttributeType: 'S' },
+          { AttributeName: 'userId', AttributeType: 'S' }
         ],
         KeySchema: [
           { AttributeName: 'username', KeyType: 'HASH' }
+        ],
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'UserIdIndex',
+            KeySchema: [
+              { AttributeName: 'userId', KeyType: 'HASH' }
+            ],
+            Projection: {
+              ProjectionType: 'ALL'
+            },
+            ProvisionedThroughput: {
+              ReadCapacityUnits: 5,
+              WriteCapacityUnits: 5
+            }
+          }
         ],
         BillingMode: 'PAY_PER_REQUEST'
       };
@@ -33,6 +49,43 @@ async function createTables() {
     } catch (error) {
       if (error.name === 'ResourceInUseException') {
         console.log('Users table already exists');
+        
+        // Try to update the table to add the GSI if it doesn't exist
+        try {
+          const updateTableParams = {
+            TableName: 'Users',
+            AttributeDefinitions: [
+              { AttributeName: 'userId', AttributeType: 'S' }
+            ],
+            GlobalSecondaryIndexUpdates: [
+              {
+                Create: {
+                  IndexName: 'UserIdIndex',
+                  KeySchema: [
+                    { AttributeName: 'userId', KeyType: 'HASH' }
+                  ],
+                  Projection: {
+                    ProjectionType: 'ALL'
+                  },
+                  ProvisionedThroughput: {
+                    ReadCapacityUnits: 5,
+                    WriteCapacityUnits: 5
+                  }
+                }
+              }
+            ]
+          };
+          
+          await dynamoDbClient.send(new UpdateTableCommand(updateTableParams));
+          console.log('Added UserIdIndex to Users table');
+        } catch (updateError) {
+          if (updateError.name === 'ResourceInUseException' || 
+              updateError.name === 'ValidationException') {
+            console.log('UserIdIndex may already exist, continuing...');
+          } else {
+            throw updateError;
+          }
+        }
       } else {
         throw error;
       }
@@ -95,12 +148,14 @@ async function createTables() {
   }
 }
 
-createTables()
-  .then(() => console.log('Migration completed'))
-  .catch(err => {
-    console.error('Migration failed:', err);
-    process.exit(1);
-  });
-
+// Run migration if this file is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  createTables()
+    .then(() => console.log('Migration completed'))
+    .catch(err => {
+      console.error('Migration failed:', err);
+      process.exit(1);
+    });
+}
 
 export { createTables };

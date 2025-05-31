@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 
-import { signupHandler, loginHandler } from "./src/handlers/auth.js";
+import { signupHandler, loginHandler, logoutHandler, getUserHandler } from "./src/handlers/auth.js";
 import { verifyToken } from "./src/handlers/middleware/authMiddleware.js";
 import { uploadHandler } from "./src/handlers/upload.js";
 import { askHandler, askStreamHandler } from "./src/handlers/ask.js";
@@ -14,12 +14,18 @@ import {
   deleteAllChatHistoryHandler 
 } from "./src/handlers/chat.js";
 import { testConnection } from './src/libs/dynamodbClient.js';
-import { listFilesHandler } from './src/handlers/list-files.js';
+import { deleteFileHandler, listFilesHandler } from './src/handlers/list-files.js';
+import cookieParser from 'cookie-parser';
 
 testConnection();
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", // your frontend URL
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json());
+
 
 const upload = multer({ dest: "uploads/" });
 
@@ -29,6 +35,7 @@ app.get("/", (req, res) => res.json({ status: "ok" }));
 // Public routes
 app.post("/api/signup", signupHandler);
 app.post("/api/login", loginHandler);
+app.get("/api/auth/user", verifyToken, getUserHandler);
 
 // Authenticated routes
 app.post("/api/upload", verifyToken, upload.single("file"), uploadHandler);
@@ -38,6 +45,8 @@ app.post("/api/ask/stream", verifyToken, askStreamHandler);
 // Routes for files
 app.get('/api/files', verifyToken, listFilesHandler);
 app.get('/api/files/:fileId', verifyToken, listFilesHandler);
+app.delete('/api/files/:fileId', verifyToken, deleteFileHandler);
+
 
 // Chat history routes
 app.get('/api/chat-history', verifyToken, getChatHistoryHandler);
@@ -45,5 +54,6 @@ app.get('/api/chat-history/:messageId', verifyToken, getChatMessageHandler);
 app.delete('/api/chat-history/:messageId', verifyToken, deleteChatMessageHandler);
 app.delete('/api/chat-history', verifyToken, deleteAllChatHistoryHandler);
 
+app.post("/api/logout", verifyToken, logoutHandler);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

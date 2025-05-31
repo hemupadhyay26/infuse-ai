@@ -1,6 +1,7 @@
 // src/models/user.js
 import { GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
 import dynamoDBDocumentClient from '../libs/dynamodbClient.js';
 
 const TABLE_NAME = 'Users';
@@ -12,6 +13,9 @@ export async function createUser(username, password, email, name) {
     throw new Error('Username already exists');
   }
 
+  // Generate a unique userId using UUID
+  const userId = uuidv4();
+
   // Hash the password
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -19,16 +23,16 @@ export async function createUser(username, password, email, name) {
     TableName: TABLE_NAME,
     Item: {
       username,
-      passwordHash: hashedPassword, // Changed to passwordHash to match existing schema
+      passwordHash: hashedPassword,
       email,
       name,
       createdAt: new Date().toISOString(),
-      userId: username // Using username as userId for simplicity
+      userId
     }
   };
 
   await dynamoDBDocumentClient.send(new PutCommand(params));
-  return { username, email, name, userId: username };
+  return { username, email, name, userId };
 }
 
 export async function getUserByUsername(username) {
@@ -41,6 +45,20 @@ export async function getUserByUsername(username) {
 
   const result = await dynamoDBDocumentClient.send(new GetCommand(params));
   return result.Item;
+}
+
+export async function getUserById(userId) {
+  const params = {
+    TableName: TABLE_NAME,
+    IndexName: 'UserIdIndex', // You'll need to create this GSI in your DynamoDB table
+    KeyConditionExpression: 'userId = :userId',
+    ExpressionAttributeValues: {
+      ':userId': userId
+    }
+  };
+
+  const result = await dynamoDBDocumentClient.send(new QueryCommand(params));
+  return result.Items?.[0] || null;
 }
 
 export async function validateUser(username, password) {
