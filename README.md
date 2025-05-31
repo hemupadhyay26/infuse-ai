@@ -41,7 +41,7 @@
 
 ## 🚀 Getting Started
 
-### 1. Clone the Repo
+Clone the Reposiory
 
 ```bash
 git clone https://github.com/hemupadhyay26/infuse-ai.git
