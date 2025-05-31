@@ -46,9 +46,15 @@
 ```bash
 git clone https://github.com/hemupadhyay26/infuse-ai.git
 cd infuse-ai
+yarn install
+docker compose up -d
+cp .env.example .env
 ```
 
-### 2. Create db folder
-``` bash
-mkdir -p src/db
-touch src/db/users.json
+paste the needed credential to `.env` file and start server
+
+```bash 
+yarn db:migrate
+yarn dev
+```
+
