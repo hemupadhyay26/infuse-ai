@@ -33,6 +33,7 @@ export async function uploadHandler(req, res) {
     const fileId = path.basename(storedPath);
     const s3Key = `${userId}/${fileId}`;
     const fileStream = fs.createReadStream(storedPath);
+    
 
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -45,7 +46,7 @@ export async function uploadHandler(req, res) {
 
     // Save file metadata to DynamoDB using the model
     const s3Path = `s3://${process.env.AWS_S3_BUCKET_NAME}/${s3Key}`;
-    await saveUserFile(userId, fileId, file.originalname, s3Path);
+    await saveUserFile(userId, fileId, file.originalname, s3Path, file.size);
 
     // Optionally clean up the local file after uploading
     fs.unlinkSync(storedPath);
@@ -53,7 +54,8 @@ export async function uploadHandler(req, res) {
     res.json({
       message: "File processed and uploaded to S3 successfully",
       filePath: s3Path,
-      fileId
+      fileId,
+      fileSize: file.size
     });
   } catch (err) {
     console.error("Error during file processing or upload:", err);

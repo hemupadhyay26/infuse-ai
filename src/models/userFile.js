@@ -4,7 +4,7 @@ import dynamoDBDocumentClient from '../libs/dynamodbClient.js';
 
 const TABLE_NAME = 'UserFiles';
 
-export async function saveUserFile(userId, fileId, fileName, s3Path) {
+export async function saveUserFile(userId, fileId, fileName, s3Path, fileSize) {
   const timestamp = new Date().toISOString();
   
   const params = {
@@ -14,6 +14,7 @@ export async function saveUserFile(userId, fileId, fileName, s3Path) {
       fileId,
       fileName,
       s3Path,
+      fileSize,
       uploadedAt: timestamp,
       status: 'processed'
     }

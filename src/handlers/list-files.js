@@ -1,5 +1,7 @@
-import { QueryCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import dynamoDBDocumentClient from "../libs/dynamodbClient.js";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { s3 } from "../libs/s3Client.js";
 
 export async function listFilesHandler(req, res) {
   const userId = req.user.userId;
@@ -65,5 +67,44 @@ export async function listFilesHandler(req, res) {
   } catch (error) {
     console.error("Error listing files:", error);
     res.status(500).json({ error: "Failed to list files" });
+  }
+}
+
+export async function deleteFileHandler(req, res) {
+  const userId = req.user.userId;
+  const fileId = req.params.fileId;
+
+  if (!fileId) {
+    return res.status(400).json({ error: "File ID is required" });
+  }
+
+  try {
+    // Get file metadata to determine S3 key
+    const getParams = {
+      TableName: "UserFiles",
+      Key: {
+        userId,
+        fileId
+      }
+    };
+    const { Item } = await dynamoDBDocumentClient.send(new GetCommand(getParams));
+    if (!Item) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    // Delete from S3
+    const s3Key = `${userId}/${fileId}`;
+    await s3.send(new DeleteObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Key: s3Key
+    }));
+
+    // Delete from DynamoDB
+    await dynamoDBDocumentClient.send(new DeleteCommand(getParams));
+
+    res.json({ message: "File deleted successfully", fileId });
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    res.status(500).json({ error: "Failed to delete file" });
   }
 }
