@@ -2,6 +2,7 @@ import { QueryCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import dynamoDBDocumentClient from "../libs/dynamodbClient.js";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3 } from "../libs/s3Client.js";
+import { deleteFromChromaUserDB } from "../rag-model/utils/helperFun.js";
 
 export async function listFilesHandler(req, res) {
   const userId = req.user.userId;
@@ -91,7 +92,16 @@ export async function deleteFileHandler(req, res) {
     if (!Item) {
       return res.status(404).json({ error: "File not found" });
     }
-
+    try {
+      // fileId is usually the filename without extension
+      // If your fileId includes extension, strip it:
+      const fileIdNoExt = fileId.replace(/\.[^/.]+$/, "");
+      await deleteFromChromaUserDB(userId, fileIdNoExt);
+    } catch (err) {
+      console.error("Error deleting from Chroma:", err);
+      // Optionally: return error or continue
+    }
+    
     // Delete from S3
     const s3Key = `${userId}/${fileId}`;
     await s3.send(new DeleteObjectCommand({
@@ -101,6 +111,8 @@ export async function deleteFileHandler(req, res) {
 
     // Delete from DynamoDB
     await dynamoDBDocumentClient.send(new DeleteCommand(getParams));
+
+    // Also delete from Chroma
 
     res.json({ message: "File deleted successfully", fileId });
   } catch (error) {
