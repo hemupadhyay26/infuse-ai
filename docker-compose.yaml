@@ -21,11 +21,11 @@ services:
       - infuse-net
   
   dynamodb-local:
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data -port 9000"
     image: amazon/dynamodb-local:latest
     container_name: dynamodb-local
     ports:
-      - "8001:8000"
+      - "9000:9000"
     volumes:
       - "./docker/dynamodb:/home/dynamodblocal/data"
     working_dir: /home/dynamodblocal
@@ -39,7 +39,7 @@ services:
     ports:
       - "8002:8001"
     environment:
-      - DYNAMO_ENDPOINT=http://dynamodb-local:8000
+      - DYNAMO_ENDPOINT=http://dynamodb-local:9000
       - AWS_REGION=ap-south-1
     depends_on:
       - dynamodb-local
